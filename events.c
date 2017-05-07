@@ -62,6 +62,8 @@ void clearEvent2Action(void);
 void rebuildHashtable(void);
 unsigned char getHash(WORD nn, WORD en);
 
+extern processEvent(unsigned char action, BYTE * msg);
+
 //Events are stored in Flash just below NVs
 /*
  * The Action to Event table.

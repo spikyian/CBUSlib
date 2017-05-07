@@ -15,6 +15,8 @@
 #ifndef MODULE_H
 #define	MODULE_H
 
+#include "GenericTypeDefs.h"
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -25,7 +27,7 @@ extern "C" {
  */
 #define BOOTLOADER_PRESENT
 
-
+    
 /*
  * NVs
  */
@@ -35,6 +37,7 @@ extern "C" {
  * This structure is required by FLiM.h
  */
 typedef struct {
+    BYTE sendSodDelay;
 	// fill in your NVs here
 } ModuleNvDefs;
 
@@ -47,8 +50,9 @@ typedef struct {
 /*
  * EVENTS
  */
+#define SOD_PRODUCED_ACTION                 0
 
-#define NUM_PRODUCER_ACTIONS                0	// CHANGE THIS
+#define NUM_PRODUCER_ACTIONS                1	// CHANGE THIS
 #define NUM_CONSUMER_ACTIONS                0	// CHANGE THIS
   
 #define NUM_ACTIONS                         (NUM_CONSUMER_ACTIONS + NUM_PRODUCER_ACTIONS)

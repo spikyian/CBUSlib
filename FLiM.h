@@ -148,8 +148,8 @@ typedef union {
         ModuleNvDefs    moduleNVs;
 } NodeVarTable;
 
-
-
+const NodeVarTable nodeVarTable @AT_NV;
+const ModuleNvDefs * NV = &(nodeVarTable.moduleNVs);
 
 /* EVENTS
  *

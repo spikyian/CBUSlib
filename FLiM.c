@@ -47,8 +47,9 @@
 #include "events.h"
 #include "romops.h"
 
+extern BOOL validateNV(BYTE NVindex, BYTE oldValue, BYTE newValue);
+extern void actUponNVchange(BYTE NVindex, BYTE NVvalue);
 
-// Access device id in config memory
 
 #ifdef __XC8__
 WORD    deviceid;      // Device id in config memory
@@ -79,6 +80,9 @@ rom EventTableEntry     *EVTPtr;    // Event table in ROM
 #pragma udata
 #endif
 
+BOOL	FLiMFlash;              // LED is flashing
+BOOL	FlashStatus;			// Control flash on/off of LED during FLiM setup etc
+
 /**
  * FLimInit called during initialisation Initialises FLiM support which will 
  * also include support for events in SLiM and CBUS/CAN
@@ -90,6 +94,7 @@ void	flimInit(void) {
     prevFlimState = flimState;
     eventsInit();
     cbusInit(DEFAULT_NN);
+    FlashStatus = FALSE;
 
     // Initialise node variables
 
@@ -610,4 +615,23 @@ void SaveNodeDetails(WORD nodeID, enum FLiMStates flimState)
     ee_write((WORD)EE_FLIM_MODE, flimState);
 } // SaveNodeDetails
 
+/**
+ * Blink green LED on to show busy doing commands, but overidden by flash if in FLiM setup mode.
+ * @param blinkstatus
+ * @return the current LED state
+ */
+BYTE BlinkLED( BOOL blinkstatus )
+{
+	BYTE LEDstatus;
+
+	if (FLiMFlash) {
+		LEDstatus = FlashStatus;
+		// FlashStatus = !FlashStatus;
+	} else {
+		LEDstatus = blinkstatus;
+    }
+
+	return( LEDstatus ? 1 : 0 );
+	
+} // BlinkLED
 
