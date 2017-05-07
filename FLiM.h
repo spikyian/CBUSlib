@@ -1,0 +1,280 @@
+#ifndef __FLiM_H
+#define __FLiM_H
+
+/*
+
+ Copyright (C) Pete Brownlow 2011-2017   software@upsys.co.uk
+
+ FLiM.h - Definitions for CBUS FLiM module - Part of CBUS libraries for PIC 18F
+ 
+ 	The FLiM routines have no code or definitions that are specific to any
+	module, so they can be used to provide FLiM facilities for any CBUS module
+	using these libraries.
+
+  This work is licensed under the:
+      Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
+   To view a copy of this license, visit:
+      http://creativecommons.org/licenses/by-nc-sa/4.0/
+   or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
+
+   License summary:
+    You are free to:
+      Share, copy and redistribute the material in any medium or format
+      Adapt, remix, transform, and build upon the material
+
+    The licensor cannot revoke these freedoms as long as you follow the license terms.
+
+    Attribution : You must give appropriate credit, provide a link to the license,
+                   and indicate if changes were made. You may do so in any reasonable manner,
+                   but not in any way that suggests the licensor endorses you or your use.
+
+    NonCommercial : You may not use the material for commercial purposes. **(see note below)
+
+    ShareAlike : If you remix, transform, or build upon the material, you must distribute
+                  your contributions under the same license as the original.
+
+    No additional restrictions : You may not apply legal terms or technological measures that
+                                  legally restrict others from doing anything the license permits.
+
+   ** For commercial use, please contact the original copyright holder(s) to agree licensing terms
+
+    This software is distributed in the hope that it will be useful, but WITHOUT ANY
+    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE
+
+**************************************************************************************************************
+  Note:   This source code has been written using a tab stop and indentation setting
+          of 4 characters. To see everything lined up correctly, please set your
+          IDE or text editor to the same settings.
+******************************************************************************************************
+	
+ For library version number and revision history see CBUSLib.h
+
+ Revision history for this file:
+  	02/06/11    PNB	- Define data structures and function prototypes
+ 	09/05/11	PNB	- Initial outline
+                PNB - Develop data structures for node variable and events tables
+    30/12/16    PNB - Add new test mode definitions
+*/
+#include "module.h"
+#include "cbus.h"
+#include "romops.h"
+#include "EEPROM.h"
+
+#define DEFAULT_NN 	0xDEAD
+
+#define FLiM_DEBOUNCE_TIME HUNDRED_MILI_SECOND
+#define FLiM_HOLD_TIME  4 * ONE_SECOND
+#define SET_TEST_MODE_TIME 8 * ONE_SECOND
+#define NEXT_TEST_TIME ONE_SECOND
+
+
+/* The parameter bytes can be accessed either as an array of bytes or as a structure with each
+ * byte name for its meaning, as defined in this union.
+ *
+ * These routines have no knowledge of where the parameter bytes are stored, they are always 
+ * passed as a parameter.
+ * 
+ * The actual parameter values are defined in the module specific code.
+ */
+
+typedef struct
+{
+    BYTE	manufacturer;
+    BYTE	minor_ver;
+    BYTE	module_id;
+    BYTE	number_of_events;
+    BYTE	evs_per_event;
+    BYTE	number_of_nvs;
+    BYTE	major_ver;
+    BYTE    module_flags;
+    BYTE    cpu_id;
+    BYTE    bus_type;
+    DWORD   load_address;
+    DWORD   cpumid;
+    BYTE    cpuman;
+    BYTE    beta;
+} ParamVals;
+
+typedef	union
+{
+    ParamVals   params;
+    BYTE        bytes[sizeof(ParamVals)];
+} FLiMParameters;
+
+#ifdef __XC8__
+typedef ParamVals       *prmvalptr;
+typedef FLiMParameters  *FLiMprmptr;
+#else
+typedef rom ParamVals       *prmvalptr;
+typedef rom FLiMParameters  *FLiMprmptr;
+#endif
+
+
+typedef BYTE    SpareParams[4];
+
+typedef struct
+{
+    WORD        parameter_count;
+    DWORD       module_type_name;
+    WORD        parameter_checksum;
+} FCUParams;
+
+typedef struct
+{
+    ParamVals   vals;
+    SpareParams spares;
+    FCUParams   FCUparams;
+} ParamBlock;
+
+
+/* NODE VARIABLES
+ *
+ * For node variables, the application code will define a structure of the form:
+ *
+ *	Typedef struct {
+ *			...
+ *		} ModuleNvDefs
+ *
+ *  Where ModuleNvDefs is a structure type that defines the meaning and structure
+ *  of each node variable as used by that application.
+ *
+ *  NVPtr is then defined to point to the NodeBytes member of the union, thus giving the
+ *  generic FLiM code access to the node variables table without requiring any knowledge
+ *  of the structure of the node variables themselves. 
+ */
+typedef	BYTE		NodeBytes[];
+typedef union {
+        NodeBytes   	nodevars;               // Do not change this as it is used by FLiM.c
+        ModuleNvDefs    moduleNVs;
+} NodeVarTable;
+
+
+
+
+/* EVENTS
+ *
+ * The events are stored in tables in flash (flash is faster to read than EEPROM).
+ * Separate tables are used for Produced events and Consumed events since they require 
+ * different data and different lookup schemes.
+ * The Produced events are looked up by the action that caused them.
+ * The Consumed events are looked up by the CBUS event to find the module specific actions
+ * to perform. The lookup is done using a hash table to find the index into the event2Actions table.
+ * The action2Event and event2Actions tables are stored in Flash whilst the hashtable
+ * lookup for the event2Actions table is stored in RAM.
+ * 
+ * For Produced events the event is taught using the action stored in the EV field of the
+ * CBUS message.
+ * For Consumed events the actions are taught using the EV field of the CBUS message.
+ * Multiple actions can be specified for a Consumed event. This can be used to set up
+ * routes with a single event. 
+ *
+ * The generic FLiM library code handles the teaching (Learn) and unlearning of events
+ * and the storage of the events. The application code just needs to process a consumed 
+ * event's actions and to produce actions using the application's actions.
+ *
+ */
+// A helper structure to store the details of an event.
+typedef struct {
+    WORD NN;
+    WORD EN;
+} Event;
+
+
+
+// State machine for FliM operations
+enum FLiMStates {
+    fsSLiM=0,		// In SLiM, button not pressed
+    fsFLiM,		// In FLiM mode
+    fsPressed,          // Button pressed, waiting for long enough
+    fsFlashing,         // Button pressed long enough,flashing now
+    fsFLiMSetup,        // In FLiM setup mode (LED flashing)
+    fsFLiMRelease,      // Release FLiM back to SLiM
+    fsSetupDone,	// Exiting setup mode
+    fsFLiMLearn,        // In FLiM learn mode
+    fsPressedFLiM,      // Pressed whilst in FLiM mode
+    fsPressedSetup,     // Pressed during setup
+    fsPressedTest,      // Pressed during test
+    fsTestMode,         // Self test mode
+    fsNextTest,         // Move on to next test
+    fsTestInput,        // Input to current test mode
+    fsNoData = 0xFF     // Uninitialised memory indicates no FLiM data present
+};
+
+// External variables for other modules to access FLiM
+
+#ifdef __XC8__
+extern NodeBytes 	*NVPtr;     // pointer to Node variables table.  \_ These can be array as defined here or with specific structures in module specific code
+//extern EventTableEntry	*EVTPtr;    // pointer to Event variables table. /
+#else
+extern rom	NodeBytes 	*NVPtr;     // pointer to Node variables table.  \_ These can be array as defined here or with specific structures in module specific code
+extern rom	EventTableEntry	*EVTPtr;    // pointer to Event variables table. /
+#endif
+
+extern BOOL	NV_changed;	
+extern enum     FLiMStates flimState;
+
+// Data stored in program ROM - FLiM parameters. Node Variables and Event Variables storage definition is in the application module.
+
+#ifdef __XC8__
+extern const ParamVals  FLiMparams;
+extern const FCUParams  FCUparams;
+extern const char       module_type[];
+#else
+extern const rom ParamVals  FLiMparams;
+extern const rom FCUParams  FCUparams;
+extern const rom char       module_type[];
+#endif
+
+
+// Function prototypes for FLiM operation
+
+void 	flimInit( void );
+
+// Check FLiM pushbutton status
+
+void FLiMSWCheck( void );
+
+
+// Enter FLiM mode - called when module wants to be allocated a node number for FLiM
+//	(for example, when pusbbutton pressed.)
+// Returns the node number allocated
+
+void requestNodeNumber( void );
+
+
+// Revert to SLiM mode - called when module wants to go back to slim
+// for example when pushbutton pressed whilst in FLiM mode
+
+void	SLiMRevert(void);
+
+// parse incoming message for events or commands
+
+BOOL parseCBUSMsg(BYTE *msg);
+
+// Process FLiM opcode - called when any module specific CBUS opcodes have 
+// been dealt with.  Returns true if the opcode was processed.
+
+BOOL 	parseFLiMCmd(BYTE *rx_ptr);
+
+
+
+// Internal functions
+
+void    QNNrespond( void );
+void 	doNNack( void );
+void	doRqnpn(BYTE idx);
+void 	doNnclr(void);
+void 	doNvrd(BYTE NVindex);
+void	doNvset(BYTE NVindex, BYTE NVvalue);
+void 	doRqnp(void);
+void    doRqmn(void);
+void 	doSnn( BYTE *rx_ptr );
+void	doError(unsigned int code);
+BOOL	thisNN( BYTE *rx_ptr);
+void    sendStartupSod(WORD defaultEvent);
+void    SaveNodeDetails(WORD Node_id, enum FLiMStates flimState);
+WORD    readCPUType( void );
+
+
+
+#endif	// __FLiM_H
