@@ -33,6 +33,44 @@ void defaultPersistentMemory(void);
 void setType(unsigned char i, unsigned char type);
 void setOutput(unsigned char i, unsigned char state, unsigned char type);
 
+/* Parameters*/
+// These must be updated
+#define MANU_ID         MANU_MERG
+#define MINOR_VER       0
+#define MODULE_ID       0
+#define MAJOR_VER       0
+#define MODULE_FLAGS    0
+#define LOAD_ADDRESS    0x800
+#define BETA            TRUE
+#define MODULE_TYPE     "UNSET"
+#define MNAME_ADDRESS   LOAD_ADDRESS + 0x20 + sizeof(ParamBlock)   // Put module type string above params so checksum can be calculated at compile time
+#define PRM_CKSUM MANU_ID+MINOR_VER+MODULE_ID+EVT_NUM+EVperEVT+NV_NUM+MAJOR_VER+MODULE_FLAGS+CPU+PB_CAN +(LOAD_ADDRESS>>8)+(LOAD_ADDRESS&0xFF)+CPUM_MICROCHIP+BETA+sizeof(ParamVals)+(MNAME_ADDRESS>>8)+(MNAME_ADDRESS&0xFF)
+
+const ParamVals     FLiMparams = { 
+    MANU_ID,        // manufacturer
+    MINOR_VER,      // minor version
+    MODULE_ID,      // module id
+    NUM_CONSUMED_EVENTS,    // number of events
+    EVperEVT,       // number of event variable per event
+    NV_NUM,         // number of node variables
+    MAJOR_VER,      // Major version
+    MODULE_FLAGS,   // flags
+    CPU,            // Processor Id 
+    PB_CAN,         // Interface protocol
+    LOAD_ADDRESS,   //  load address
+    P18F25K80,      // processor code
+    CPUM_MICROCHIP, // manufacturer code
+    BETA           // beta release flag
+    // rest of parameters are filled in by doRqnpn in FLiM.c
+};
+const SpareParams   spareparams;
+const FCUParams     FCUparams   = { 
+    sizeof(ParamVals),
+    (DWORD)module_type,
+    (WORD)PRM_CKSUM
+};
+const char          module_type[] = MODULE_TYPE;
+
 #ifdef __C18__
 void high_irq_errata_fix(void);
 

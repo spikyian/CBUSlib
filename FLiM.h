@@ -67,6 +67,7 @@
 #define SET_TEST_MODE_TIME 8 * ONE_SECOND
 #define NEXT_TEST_TIME ONE_SECOND
 
+extern BYTE BlinkLED( BOOL blinkstatus );
 
 /* The parameter bytes can be accessed either as an array of bytes or as a structure with each
  * byte name for its meaning, as defined in this union.

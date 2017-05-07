@@ -82,7 +82,7 @@ rom EventTableEntry     *EVTPtr;    // Event table in ROM
 
 BOOL	FLiMFlash;              // LED is flashing
 BOOL	FlashStatus;			// Control flash on/off of LED during FLiM setup etc
-
+BOOL    NV_changed;
 /**
  * FLimInit called during initialisation Initialises FLiM support which will 
  * also include support for events in SLiM and CBUS/CAN
