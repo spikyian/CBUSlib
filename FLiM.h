@@ -149,7 +149,7 @@ typedef union {
         ModuleNvDefs    moduleNVs;
 } NodeVarTable;
 
-const NodeVarTable nodeVarTable @AT_NV;
+extern const NodeVarTable nodeVarTable;
 const ModuleNvDefs * NV = &(nodeVarTable.moduleNVs);
 
 /* EVENTS
@@ -272,7 +272,6 @@ void    doRqmn(void);
 void 	doSnn( BYTE *rx_ptr );
 void	doError(unsigned int code);
 BOOL	thisNN( BYTE *rx_ptr);
-void    sendStartupSod(WORD defaultEvent);
 void    SaveNodeDetails(WORD Node_id, enum FLiMStates flimState);
 WORD    readCPUType( void );
 

@@ -88,7 +88,7 @@ BOOL    NV_changed;
  * also include support for events in SLiM and CBUS/CAN
  *  
  */
-void	flimInit(void) {
+void flimInit(void) {
     initRomOps();    
     flimState = ee_read((WORD)EE_FLIM_MODE);   // Get flim mode from EEPROM
     prevFlimState = flimState;
@@ -212,7 +212,7 @@ void FLiMSWCheck( void ) {
  * (for example, when pusbbutton pressed.)
  * Sends the node number allocated.
  */
-void	requestNodeNumber( void ) {
+void requestNodeNumber( void ) {
     BYTE local_cbusMsg[d0+3];
 
     // send request node number packet
@@ -247,8 +247,6 @@ BOOL parseCBUSMsg(BYTE *msg) {
 /**
  * Process CBUS opcode for FLiM. Called after any module specific CBUS opcodes have
  * been dealt with.  
- *
- * TODO - check call of this and passing of CBUS message
  * 
  * @param rx_ptr the received CBUS message
  * @return true if the message was processed
@@ -593,15 +591,6 @@ BOOL thisNN( BYTE *rx_ptr) {
 	} else {
 	 	return FALSE;
     }
-}
-
-/**
- * Sends the Start Of Day message if one has been defined.
- * @param defaultEvent
- */
-void    sendStartupSod(WORD sodEvent) {
-    //TODO - check to see if other event taught
-    cbusSendEvent( 0, 0, sodEvent, TRUE );  // Report I/O initialised
 }
 
 /**

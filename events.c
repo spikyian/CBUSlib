@@ -511,11 +511,18 @@ void deleteAction(unsigned char action) {
         unsigned char a;
         for (a=0; a<EVperEVT; a++) {
             if (event2Action[evtIdx].actions[a] == action) {
-                writeFlashImage((BYTE*)&(event2Action[evtIdx].actions[a]), NO_ACTION);
-                // TODO shift the actions along
+                // shift the actions along - could be made more efficient by checking if we have reached a NO_ACTIO
+                for (unsigned char aa = a; aa <EVperEVT-1; aa++) {
+                    writeFlashImage((BYTE*)&(event2Action[evtIdx].actions[aa]), event2Action[evtIdx].actions[aa+1]);
+                }
+                writeFlashImage((BYTE*)&(event2Action[evtIdx].actions[EVperEVT-1]), NO_ACTION);
             }
         }
-        // TODO if all actions are NO_ACTION then delete the entry entirely
+        // if the first (and hence all actions) is NO_ACTION then delete the entry entirely
+        if (event2Action[evtIdx].actions[0] == NO_ACTION) {
+            setFlashWord((WORD*)&event2Action[evtIdx].event.NN, NO_EVENT);
+            setFlashWord((WORD*)&event2Action[evtIdx].event.EN, NO_EVENT);
+        }
     }
     flushFlashImage();
     // easier to rebuild from scratch
